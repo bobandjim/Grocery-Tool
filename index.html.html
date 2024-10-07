@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grocery Order</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #groceryItems {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: lightgreen;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+        button:active {
+            background-color: green;
+            color: white;
+        }
+        .hidden {
+            display: none;
+        }
+        .item-input {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Select Grocery Items</h1>
+<form id="groceryForm">
+    <div id="groceryItems"></div>
+    
+</form>
+
+
+
+<p id="lastOrderDisplay" class="hidden"></p>
+<p id="orderFeedback" style="color: green;" class="hidden"></p>
+
+<h2>Your Cart</h2>
+<div id="cartItems" class="hidden"></div>
+
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBgz0JBDmtW-GZt1d0ea-AgWnGUvbHKUkw",
+        authDomain: "grocery-backend-a1dc8.firebaseapp.com",
+        databaseURL: "https://grocery-backend-a1dc8-default-rtdb.firebaseio.com",
+        projectId: "grocery-backend-a1dc8",
+        storageBucket: "grocery-backend-a1dc8.appspot.com",
+        messagingSenderId: "701141752604",
+        appId: "1:701141752604:web:eeb51444deb7eb759f78d9"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Function to fetch grocery items from Firebase
+    function fetchGroceryItems() {
+        const itemsRef = database.ref('Grocery Items/');
+        itemsRef.on('value', (snapshot) => {
+            const categories = snapshot.val();
+            
+            console.log('Categories:', categories); // Log the categories fetched
+            const groceryItemsDiv = document.getElementById("groceryItems");
+            groceryItemsDiv.innerHTML = ""; // Clear existing items
+
+            if (categories) {
+                // Loop through each category
+                for (let category in categories) {
+                    const items = categories[category]; // Get items under each category
+                    
+                    // Create a section for each category
+                    const categoryDiv = document.createElement("div");
+                    const categoryHeading = document.createElement("h3");
+                    categoryHeading.textContent = category; // Set category name
+                    categoryDiv.appendChild(categoryHeading);
+                    
+                    // Create a toggle button to show/hide items
+                    const toggleButton = document.createElement("button");
+                    toggleButton.textContent = "Show Options";
+                    toggleButton.type = "button"; // Prevent form submission
+                    toggleButton.onclick = () => {
+                        const itemList = document.getElementById(category + "-items");
+                        const inputDiv = document.querySelector(`#${category}-items .item-input`); // Get the input div for the category
+
+                        // Toggle the display property of the item list and input
+                        if (itemList.style.display === "none" || itemList.style.display === "") {
+                            itemList.style.display = "block"; // Show the item list
+                            inputDiv.style.display = "block"; // Also show the add new item section
+                            toggleButton.textContent = "Hide Options"; // Update button text
+                        } else {
+                            itemList.style.display = "none"; // Hide the item list
+                            inputDiv.style.display = "none"; // Also hide the add new item section
+                            toggleButton.textContent = "Show Options"; // Update button text
+                        }
+                    };
+                    categoryDiv.appendChild(toggleButton);
+
+                    // Create a div to hold items
+                    const itemListDiv = document.createElement("div");
+                    itemListDiv.id = category + "-items"; // Unique ID for item list
+                    itemListDiv.className = "item-list"; // Class for styling
+                    itemListDiv.style.display = "none"; // Initially hide the items
+
+                    console.log('Items:', items);
+
+                    // Convert items to an array of [key, value] pairs
+                    const itemsArray = Object.entries(items);
+
+                    // Sort the array based on the value (text string)
+                    const sortedItemsArray = itemsArray.sort((a, b) => {
+                        const valueA = a[1].toLowerCase(); // Get the value for the first item
+                        const valueB = b[1].toLowerCase(); // Get the value for the second item
+                        if (valueA < valueB) return -1; // Sort ascending
+                        if (valueA > valueB) return 1; // Sort ascending
+                        return 0; // They are equal
+                    });
+
+              
+
+
+
+
+// Loop through each item in the category
+sortedItemsArray.forEach(([itemKey, item]) => {
+    // Create a label for the item name
+    const label = document.createElement("label");
+    label.textContent = item; // Set the display text for the item name
+
+    // Create a div for quantity input and button (all inline)
+    const itemContainerDiv = document.createElement("div");
+    itemContainerDiv.style.display = "flex"; // Use flex to arrange elements inline
+    itemContainerDiv.style.alignItems = "center"; // Vertically align items
+    itemContainerDiv.style.marginBottom = "10px"; // Add margin between items
+
+    // Create the quantity input
+    const quantityInput = document.createElement("input");
+    quantityInput.type = "number";
+    quantityInput.value = 1; // Default to 1
+    quantityInput.min = 1; // Minimum value is 1
+    quantityInput.style.width = "50px"; // Set width for better appearance
+    quantityInput.style.marginLeft = "10px"; // Add spacing between label and input
+
+    // Create an "Add to Cart" button
+    const addToCartButton = document.createElement("button");
+    addToCartButton.textContent = "Add to Cart";
+    addToCartButton.style.marginLeft = "10px"; // Add space between input and button
+    addToCartButton.onclick = function(event) {
+		event.preventDefault();
+        const quantity = parseInt(quantityInput.value); // Get the quantity from the input
+        addToCart(item, quantity); // Call the addToCart function with the item and quantity
+    };
+
+    // Append the label, quantity input, and button to the itemContainerDiv
+    itemContainerDiv.appendChild(label);      // Append item label
+    itemContainerDiv.appendChild(quantityInput);  // Append quantity input next to label
+    itemContainerDiv.appendChild(addToCartButton); // Append button next to input
+
+    // Append the itemContainerDiv to the itemListDiv
+    itemListDiv.appendChild(itemContainerDiv);
+});
+
+
+
+                    // Add input box and button for adding new items
+                    const inputDiv = document.createElement("div");
+                    inputDiv.className = "item-input";
+                    const newItemInput = document.createElement("input");
+                    newItemInput.type = "text";
+                    newItemInput.placeholder = "Add new item";
+                    const addButton = document.createElement("button");
+                    addButton.type = "button"; // Prevent form submission
+                    addButton.textContent = "Add";
+                    addButton.onclick = () => addItem(category, newItemInput.value); // Call addItem function
+                    
+                    inputDiv.appendChild(newItemInput);
+                    inputDiv.appendChild(addButton);
+                    itemListDiv.appendChild(inputDiv); // Append input box and button to itemListDiv
+
+                    // Append itemListDiv to the categoryDiv
+                    categoryDiv.appendChild(itemListDiv);
+                    groceryItemsDiv.appendChild(categoryDiv); // Add the category div to the main div
+                }
+            } else {
+                console.log('No categories found in the database.'); // Log if no data found
+            }
+        }, (error) => {
+            console.error('Error fetching data:', error); // Log any errors
+        });
+    }
+
+    // Function to add a new item to the selected category
+    function addItem(category, item) {
+        if (item.trim() !== "") {
+            const itemsRef = database.ref(`Grocery Items/${category}`);
+            const newItemRef = itemsRef.push(); // Create a new reference for the item
+            newItemRef.set(item) // Set the value to the item
+                .then(() => {
+                    console.log(`Item "${item}" added to category "${category}".`);
+                    fetchGroceryItems(); // Refresh the list to show the new item
+                })
+                .catch((error) => {
+                    console.error('Error adding item:', error);
+                });
+        } else {
+            alert("Please enter an item name.");
+        }
+    }
+
+    // Call the function to fetch items on page load
+    window.onload = fetchGroceryItems;
+
+    // Function to handle the order button
+    function createOrder() {
+        const groceryItemsDiv = document.getElementById("groceryItems");
+        const selectedItems = [...groceryItemsDiv.querySelectorAll('input[type="checkbox"]:checked')].map(checkbox => checkbox.value);
+
+        // Display the last order
+        const lastOrderDisplay = document.getElementById("lastOrderDisplay");
+        const orderFeedback = document.getElementById("orderFeedback");
+
+        if (selectedItems.length > 0) {
+            lastOrderDisplay.innerText = "You ordered: " + selectedItems.join(", ");
+            lastOrderDisplay.classList.remove("hidden");
+            orderFeedback.innerText = "Thank you for your order!";
+            orderFeedback.classList.remove("hidden");
+        } else {
+            lastOrderDisplay.innerText = "No items selected.";
+            lastOrderDisplay.classList.remove("hidden");
+            orderFeedback.innerText = "";
+            orderFeedback.classList.add("hidden");
+        }
+    }
+
+    // Function to reset the order
+    function resetOrder() {
+        const groceryItemsDiv = document.getElementById("groceryItems");
+        groceryItemsDiv.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = false; // Uncheck all checkboxes
+        });
+        document.getElementById("lastOrderDisplay").classList.add("hidden");
+        document.getElementById("orderFeedback").classList.add("hidden");
+    }
+
+
+
+// Function to add selected item with quantity to the cart
+// Function to add selected item with quantity to the cart
+function addToCart(item, quantity) {
+    const userId = "userID_1"; // Replace with the actual user ID if you have user authentication
+    const cartRef = database.ref(`Cart/${userId}`);
+
+    // Create a new reference for the cart item
+    const newCartItemRef = cartRef.push();
+
+    // Create a JSON object to send to the database
+    const cartItemData = {
+        itemName: item,
+        quantity: quantity
+    };
+
+    // Set the value of the item in the cart with its quantity
+    newCartItemRef.set(cartItemData) // This is where the JSON object is used
+        .then(() => {
+            console.log(`Item "${item}" with quantity ${quantity} added to the cart.`);
+            // Reset the quantity input box to 1 after the item is added
+            document.querySelector(`input[type="number"]`).value = 1;
+        })
+        .catch((error) => {
+            console.error('Error adding item to cart:', error);
+        });
+		fetchCartItems();
+}
+
+
+// Call the function to fetch items on page load
+window.onload = function() {
+    fetchGroceryItems(); // Fetch grocery items
+    fetchCartItems();    // Fetch cart items
+};
+
+
+
+
+
+
+// Function to fetch cart items
+function fetchCartItems() {
+    const userId = "userID_1"; // Use the actual user ID as needed
+    const cartRef = database.ref(`Cart/${userId}`);
+
+    cartRef.on('value', (snapshot) => {
+        const cartItems = snapshot.val();
+        const cartItemsDiv = document.getElementById("cartItems");
+        cartItemsDiv.innerHTML = ""; // Clear existing cart items
+
+        if (cartItems) {
+            const itemsArray = Object.entries(cartItems); // Convert to array of [key, value] pairs
+            
+            // Sort the array based on item names (the itemName key)
+            const sortedItemsArray = itemsArray.sort((a, b) => {
+                const itemA = a[1].itemName.toLowerCase();
+                const itemB = b[1].itemName.toLowerCase();
+                return itemA.localeCompare(itemB); // Sort alphabetically
+            });
+
+            // Create a list of cart items
+            sortedItemsArray.forEach(([key, { itemName, quantity }]) => {
+                const itemDisplay = document.createElement("div");
+                itemDisplay.textContent = `${itemName} x ${quantity} `; // Display item and quantity
+
+                // Create a Remove button
+                const removeButton = document.createElement("button");
+                removeButton.textContent = "Remove";
+                removeButton.onclick = function() {
+                    removeFromCart(key); // Call remove function with item key
+                };
+
+                itemDisplay.appendChild(removeButton); // Add button to item display
+                cartItemsDiv.appendChild(itemDisplay); // Add item display to cart
+            });
+
+            // Show the cart section
+            cartItemsDiv.classList.remove("hidden"); // Show the cart section
+        } else {
+            cartItemsDiv.textContent = "Your cart is empty."; // Display message for empty cart
+        }
+    }, (error) => {
+        console.error('Error fetching cart items:', error); // Log any errors
+    });
+}
+
+// Function to remove an item from the cart
+function removeFromCart(itemKey) {
+    const userId = "userID_1"; // Use the actual user ID as needed
+    const itemRef = database.ref(`Cart/${userId}/${itemKey}`); // Reference to the specific item
+
+    itemRef.remove() // Remove the item from the database
+        .then(() => {
+            console.log(`Item with key "${itemKey}" removed from cart.`);
+            fetchCartItems(); // Refresh the cart display after removal
+        })
+        .catch((error) => {
+            console.error('Error removing item from cart:', error);
+        });
+}
+
+</script>
+
+</body>
+</html>
